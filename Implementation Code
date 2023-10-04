@@ -1,0 +1,161 @@
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.layers import Embedding, Conv1D, GlobalMaxPooling1D, Dense, Dropout, Input
+from tensorflow.keras.models import Model
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+
+# Example sentences organized by topics
+topic_sentences = {
+    "Technology": [
+        "This is a sentence about technology.",
+        "Artificial intelligence is revolutionizing industries across the globe.",
+        "The latest smartphone features cutting-edge technology for enhanced user experience.",
+        "Advancements in artificial intelligence are reshaping industries.",
+        "Advancements in pyhton lead to increase in jobs in DataScienece fields",
+        # Add more technology-related sentences
+    ],
+    "Furniture": [
+        "Garden Furniture & Water Features Limited stock and Amazing prices.",
+        "Kitchen Gardeners International has 317 followers on Google+",
+        "Pack x6 English Lavender Angustifolia 'Hidcote' Perennial Garden Plug Plants by plugplants.net",
+        "FLEXIBLE EXPANDABLE HOSE PIPE LIGHT WEIGHT NON KINK WATER SPRAY NOZZLE. (Blue, 100 ft) by Generic",
+        "Garden beds for sale 10sft at 50 falt off hurry now",
+        "Good Furniture at good price vist our store before sales end!!",
+        # Add more technology-related sentences
+    ],
+    "Electronic Gadgets": [
+        "Oral-B Pro 4000 CrossAction Electric Rechargeable Toothbrush Powered by Braun by Oral B",
+        "Apple Ipad Air Wifi64GB Siver MD790B/A by Apple",
+        "Samsung UE32J5100 Full HD 1080p 32-Inch LED TV (2015 Model) by Samsung",
+        "Smartphone offers carphonewarehouse.com",
+        "Save up to 50 percent on Selected Cameras",
+        "The new DSLR Camera by Sony-Reinvent relive ",
+        "The new BOSCH tool drill set",
+        "There are many cameras in the shop",
+        
+        
+        
+        # Add more environment-related sentences
+    ],
+    "Daily Accessories": [
+        "Cute Wigs $9.70 Only",
+        "Simplified Style Tote Elegant Shoulder Bag Gold Chain Metal Tassel Handbag Canvas Purse by PARA",
+        "H&M - Leather belt - Black - Ladies",
+        "Gillette Mach 3 Manual Razor Blades Pack of 4 by Gillette",
+        "Buy Second-hand, New and Antique Books | Oxfam's Online",
+        "Containers For Paint - Plastic Buckets, Pails, Pots, Tubs",
+        
+        
+        # Add more environment-related sentences
+    ],
+    "Beauty Accesorries": [
+        "Beauty Protector Beauty Cream Body Lotion | Birchbox",
+        "This rich cream nourishes our skin, leaving it hydrated, soft",
+        "Dove Exfoliating Beauty Cream Bar ",
+        "Maybelline- Maybe she's born with it",
+        
+        
+        # Add more environment-related sentences
+    ],
+    "Environment": [
+        "The environment is a critical global topic.",
+        "Climate change poses a significant threat to our planet's ecosystems.",
+        "Renewable energy sources like solar and wind power are essential for a sustainable future.",
+        "Plant more tree's save climate",
+        
+        # Add more environment-related sentences
+    ],
+    "Healthcare": [
+        "Healthcare systems are undergoing significant changes.",
+        "Medical breakthroughs in gene editing hold promise for treating genetic disorders.",
+        "Telemedicine is improving access to healthcare services, especially in remote areas.",
+        "Yoga everyday keeps your body fit",
+        "Green veggies helps to boost health",
+        "Green veggies are good for health",
+        "Healthy lifestyle is supported by yoga",
+        "Exercies keeps our body fit",
+        # Add more healthcare-related sentences
+    ],
+    "Food": [
+        "Plant-based diets are gaining popularity for their health and environmental benefits.",
+        "Genetically modified organisms (GMOs) have sparked debates about their safety and impact on food production.",
+        "Food safety standards are crucial to prevent foodborne illnesses.",
+        "Burgers at flat 50 percent off buy now",
+        "Cheese n Macaroni Pizza get youselves 2",
+        "Coke at KFC",
+        "pizza good food",
+        "Burgers are delicious",
+        
+        
+        # Add more food-related sentences
+    ],
+    # Add more topics and sentences
+}
+
+# Combine sentences and topics
+sentences = []
+topics = []
+for topic, sentences_list in topic_sentences.items():
+    sentences.extend(sentences_list)
+    topics.extend([topic] * len(sentences_list))
+
+# Preprocess sentences
+max_words = 1000  # Maximum number of words in the vocabulary
+tokenizer = Tokenizer(num_words=max_words)
+tokenizer.fit_on_texts(sentences)
+sequences = tokenizer.texts_to_sequences(sentences)
+word_index = tokenizer.word_index
+max_sequence_length = 100  # Set a reasonable maximum sequence length
+padded_sequences = pad_sequences(sequences, maxlen=max_sequence_length)
+
+# Encode topics
+label_encoder = LabelEncoder()
+encoded_topics = label_encoder.fit_transform(topics)
+num_classes = len(label_encoder.classes_)
+
+# Split data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(padded_sequences, encoded_topics, test_size=0.2, random_state=42)
+
+# Build an enhanced CNN model
+embedding_dim = 100
+input_layer = Input(shape=(max_sequence_length,))
+embedding_layer = Embedding(input_dim=max_words, output_dim=embedding_dim)(input_layer)
+conv1_layer = Conv1D(filters=128, kernel_size=3, activation='relu')(embedding_layer)
+conv2_layer = Conv1D(filters=128, kernel_size=5, activation='relu')(embedding_layer)
+pool1_layer = GlobalMaxPooling1D()(conv1_layer)
+pool2_layer = GlobalMaxPooling1D()(conv2_layer)
+merged_layer = tf.keras.layers.concatenate([pool1_layer, pool2_layer], axis=-1)
+dropout_layer = Dropout(0.5)(merged_layer)
+output_layer = Dense(num_classes, activation='softmax')(dropout_layer)
+
+model = Model(inputs=input_layer, outputs=output_layer)
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+num_epochs = 50
+batch_size = 16
+model.fit(X_train, y_train, epochs=num_epochs, batch_size=batch_size, validation_data=(X_test, y_test))
+
+# Now you can use the trained model to predict topics for new sentences
+new_sentences = [
+    "Advancements in artificial intelligence are reshaping industries.",
+    "Climate change is a growing concern.",
+    "Buy 2 burgers at the cost of one",
+    "Yoga makes your body fit",
+    "Eat more green vegetables to boost immunity",
+    "Artificial Intelligence is taking world by storm",
+    "Italian Pizza made from dough and wheat",
+    "New camera showroom opened",
+    
+    # Add more new sentences here
+]
+new_sequences = tokenizer.texts_to_sequences(new_sentences)
+new_padded_sequences = pad_sequences(new_sequences, maxlen=max_sequence_length)
+predictions = model.predict(new_padded_sequences)
+predicted_topics = label_encoder.inverse_transform(np.argmax(predictions, axis=1))
+
+for sentence, topic in zip(new_sentences, predicted_topics):
+    print(f"Sentence: {sentence} - Predicted Topic: {topic}")
